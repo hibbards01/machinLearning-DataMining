@@ -164,8 +164,8 @@ class Classifier:
                 count += 1
 
         # Print out the results
-        print('Here are test results: \n'
-            '\tAlgorithm was %f accurate' % (count / len(self.testSet)))
+        print('\nHere are test results: \n'
+            '\tAlgorithm was %f accurate\n' % (count / len(self.testSet)))
 
         return
 
