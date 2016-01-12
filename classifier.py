@@ -93,10 +93,10 @@ class Classifier:
     #
     # Member variables
     #
-    trainSet = [] # This will hold all the trainSet values
-    testSet  = [] # This will hold all the testSet values
-    train    = 0  # What percentage of the list do you want to train?
-    test     = 0  # What percentage of the list do you want to test?
+    trainSet = []  # This will hold all the trainSet values
+    testSet  = []  # This will hold all the testSet values
+    train    = 0.7 # What percentage of the list do you want to train?
+    test     = 0.3 # What percentage of the list do you want to test?
 
     #
     # Member methods
@@ -104,9 +104,18 @@ class Classifier:
     ###########################################
     # Constructor
     ###########################################
-    def __init__(self, train=0.7, test=0.3):
-        self.train    = train
-        self.test     = test
+    def __init__(self, train, test):
+        if train is not None:
+            self.train = train
+
+        if test is not None:
+            self.test  = test
+
+        # Now fix one or the other
+        if train is not None and test is None:
+            self.test = 1.0 - train
+        elif test is not None and train is None:
+            self.train = 1.0 - test
 
     ###########################################
     # saveData
@@ -174,18 +183,46 @@ class Classifier:
 #   Main driver of the program
 ###########################################
 def main(argv):
-    # Import the data set
-    from sklearn import datasets
-    irisData = datasets.load_iris();
+    # Grab the arguments
+    helpI = False
+    train = None
+    test  = None
+    for i, input in enumerate (argv):
+        # See what was inputed
+        if input == '-train' and (i + 1) < len(argv):
+            train = float(argv[i + 1])
+        elif input == '-test' and (i + 1) < len(argv):
+            test = float(argv[i + 1])
+        elif input == '-help':
+            helpI = True
 
-    # Now create the classifier class
-    classifier = Classifier()
+    # Make sure they both work
+    if train is not None and test is not None:
+        if (train + test) < 1.0 or (train + test) > 1.0:
+            print('\nError with your train and test values. They must add up to 1.0.\n\n')
+            return
 
-    # Now give the data to the classifier
-    classifier.saveData(irisData)
+    # See what was passed
+    if helpI:
+        print('\nCommand line arguments for classifier.py:\n\n'
+            '    py classifier.py [options] [value]\n\n'
+            '    Options:\n'
+            '\t-train, Give a percent of what this should be trained on. OPTIONAL. Default 0.7\n'
+            '\t-test,  Give a percent of what this should be tested on. OPTIONAL. Default 0.3\n'
+            '\t-help,  Show this.\n\n')
+    else :
+        # Import the data set
+        from sklearn import datasets
+        irisData = datasets.load_iris();
 
-    # Finally test the algorithm
-    classifier.runTest()
+        # Now create the classifier class
+        classifier = Classifier(train, test)
+
+        # Now give the data to the classifier
+        classifier.saveData(irisData)
+
+        # Finally test the algorithm
+        classifier.runTest()
 
 # Invoke the program
 if __name__ == "__main__":
