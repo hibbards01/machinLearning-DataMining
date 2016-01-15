@@ -12,6 +12,7 @@
 
 import sys
 import random
+import csv
 
 ##########################################
 # DataSet
@@ -24,7 +25,6 @@ class DataSet:
     #
     data       = []
     target     = ''
-    targetName = ''
 
     #
     # Member methods
@@ -32,10 +32,9 @@ class DataSet:
     ###########################################
     # Constructor
     ###########################################
-    def __init__(self, data, target, targetName):
+    def __init__(self, data, target):
         self.data       = data
         self.target     = target
-        self.targetName = targetName
 
 ##########################################
 # HardCoded
@@ -44,7 +43,7 @@ class HardCoded:
     #
     # Member variables
     #
-
+    trainData = []
 
     #
     # Member methods
@@ -53,15 +52,42 @@ class HardCoded:
     # Constructor
     ###########################################
     def __init__(self, trainingData):
-        self.training(trainingData)
+        self.trainData = trainingData
+
+        # Normalize the data
+        self.normalize()
 
     ###########################################
-    # training
-    #   This will use the data in order to train
-    #       itself.
+    # normalize
+    #   This will change the data based off the
+    #       standard deviation and mean.
     ###########################################
-    def training(self, data):
-        # Training...
+    def normalize(self):
+        # Import the library for the calucations
+        import numpy as np
+
+        # Grab the number of attributes
+        num = len(self.trainData[0].data)
+
+        # Create an dictionary array. This will save the columns
+        attributeValues = [[]] * num
+
+        # Split the attributes by it's columns
+        for attributes in self.trainData:
+            # Now loop through the columns
+            for i, attribute in enumerate (attributes.data):
+                # Now save it
+                attributeValues[i].append(attribute)
+
+        # Grab the standard deviation and mean
+        stndDev = np.std(attributeValues, axis=1)
+        mean = np.mean(attributeValues, axis=1)
+
+        # Now save the zscore
+        for attributes in self.trainData:
+            for i, attribute in enumerate (attributes.data):
+                attributes.data[i] = (attribute - mean[i]) / stndDev[i]
+
         return
 
     ###########################################
@@ -69,11 +95,11 @@ class HardCoded:
     #   This will now test the algorithm. Based
     #       upon what it was trained.
     ###########################################
-    def predict(self, data):
+    def predict(self, testData, k):
         results = []
 
         # For loop through the data
-        for i in data:
+        for i in testData:
             results.append(0)
 
         return results
@@ -126,17 +152,12 @@ class Classifier:
     ###########################################
     def saveData(self, irisData):
         iris       = [] # Save all the data sets
-        targetName = 0  # Index for the target names
         size       = 0
 
         # Loop through the data
         for i, data in enumerate (irisData.data):
-            # Now see where we are at
-            if i % 50 == 0 and i > 0:
-                targetName += 1 # Increment the number if we are there
-
             # Create a new DataSet
-            iris.append(DataSet(data, irisData.target[i], irisData.target_names[targetName]))
+            iris.append(DataSet(data, irisData.target[i]))
 
             # Save the size
             size += 1
@@ -164,7 +185,7 @@ class Classifier:
         hardCoded = HardCoded(self.trainSet)
 
         # Now test it
-        results = hardCoded.predict(self.testSet)
+        results = hardCoded.predict(self.testSet, 1)
 
         # See how accurate it is
         count = 0
@@ -187,6 +208,7 @@ def main(argv):
     helpI = False
     train = None
     test  = None
+    csv  = None
     for i, input in enumerate (argv):
         # See what was inputed
         if input == '-train' and (i + 1) < len(argv):
@@ -195,6 +217,9 @@ def main(argv):
             test = float(argv[i + 1])
         elif input == '-help':
             helpI = True
+        elif input == '-file' and (i + 1) < len(argv):
+            csv = argv[i + 1]
+
 
     # Make sure they both work
     if train is not None and test is not None:
@@ -209,20 +234,28 @@ def main(argv):
             '    Options:\n'
             '\t-train, Give a percent of what this should be trained on. OPTIONAL. Default 0.7\n'
             '\t-test,  Give a percent of what this should be tested on. OPTIONAL. Default 0.3\n'
+            '\t-file,  Give a .csv file for the data that you want to test against. OPTIONAL.\n'
+            '\t        DEFAULT Iris data will be tested.\n'
             '\t-help,  Show this.\n\n')
     else :
         # Import the data set
-        from sklearn import datasets
-        irisData = datasets.load_iris();
+        data = []
+        if csv is not None:
+            data = []
+        else :
+            from sklearn import datasets
+            data = datasets.load_iris();
 
         # Now create the classifier class
         classifier = Classifier(train, test)
 
         # Now give the data to the classifier
-        classifier.saveData(irisData)
+        classifier.saveData(data)
 
         # Finally test the algorithm
         classifier.runTest()
+
+    return
 
 # Invoke the program
 if __name__ == "__main__":
