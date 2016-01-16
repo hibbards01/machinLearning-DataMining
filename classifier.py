@@ -10,9 +10,12 @@
 #     evaluated from the data set.
 #######################################################
 
+# Import some libraries
 import sys
 import random
 import csv
+import math
+import operator
 
 ##########################################
 # DataSet
@@ -33,8 +36,8 @@ class DataSet:
     # Constructor
     ###########################################
     def __init__(self, data, target):
-        self.data       = data
-        self.target     = target
+        self.data   = data
+        self.target = target
 
 ##########################################
 # HardCoded
@@ -44,6 +47,7 @@ class HardCoded:
     # Member variables
     #
     trainData = []
+    k = 0
 
     #
     # Member methods
@@ -51,29 +55,30 @@ class HardCoded:
     ###########################################
     # Constructor
     ###########################################
-    def __init__(self, trainingData):
+    def __init__(self, trainingData, k):
         self.trainData = trainingData
+        self.k = k
 
         # Normalize the data
-        self.normalize()
+        self.trainData = self.normalize(self.trainData)
 
     ###########################################
     # normalize
     #   This will change the data based off the
     #       standard deviation and mean.
     ###########################################
-    def normalize(self):
+    def normalize(self, dataSet):
         # Import the library for the calucations
         import numpy as np
 
         # Grab the number of attributes
-        num = len(self.trainData[0].data)
+        num = len(dataSet[0].data)
 
         # Create an dictionary array. This will save the columns
         attributeValues = [[]] * num
 
         # Split the attributes by it's columns
-        for attributes in self.trainData:
+        for attributes in dataSet:
             # Now loop through the columns
             for i, attribute in enumerate (attributes.data):
                 # Now save it
@@ -84,25 +89,97 @@ class HardCoded:
         mean = np.mean(attributeValues, axis=1)
 
         # Now save the zscore
-        for attributes in self.trainData:
+        for attributes in dataSet:
             for i, attribute in enumerate (attributes.data):
                 attributes.data[i] = (attribute - mean[i]) / stndDev[i]
 
-        return
+        return dataSet
+
+    ###########################################
+    # findDistance
+    ###########################################
+    def findDistance(self, instance1, instance2):
+        distance = 0
+
+        # Now loop through all the instance1
+        for i, instance in enumerate (instance1):
+            # Grab the distance
+            distance += pow((instance - instance2[i]), 2)
+
+        # Return the distance
+        return math.sqrt(distance)
+
+    ###########################################
+    # findNeighbors
+    #   This will find the closest neighbors to
+    #       the test set.
+    ###########################################
+    def findNeighbors(self, testInstance):
+        distances = []
+
+        # Loop through all the training set
+        for instance in self.trainData:
+            # First grab the distance
+            distance = self.findDistance(testInstance, instance.data)
+
+            # Now save the distance
+            distances.append((instance.target, distance))
+
+        # Now sort the distances by the value
+        distances.sort(key=operator.itemgetter(1))
+
+        # Grab the neighbors closest to the testInstance
+        neighbors = []
+        for n in range(self.k):
+            neighbors.append(distances[n][0])
+
+        return neighbors
+
+    ###########################################
+    # getVote
+    #   This will vote on who the test data is.
+    ###########################################
+    def getVote(self, neighbors):
+        votes = {}
+
+        # Loop through the neighbors
+        for response in neighbors:
+            # Save response
+            if response in votes:
+                votes[response] += 1
+            else:
+                votes[response] = 1
+
+        # Sort the votes
+        sortedVotes = sorted(votes.items(), key=operator.itemgetter(1), reverse=True)
+
+        # Grab the winner!
+        return sortedVotes[0][0]
 
     ###########################################
     # predict
     #   This will now test the algorithm. Based
     #       upon what it was trained.
     ###########################################
-    def predict(self, testData, k):
-        results = []
+    def predict(self, testData):
+        # Make some variables
+        predictions = []
 
-        # For loop through the data
-        for i in testData:
-            results.append(0)
+        # Normalize the testData
+        testData = self.normalize(testData)
 
-        return results
+        # # Loop throught the test data and grab the predictions
+        for testInstance in testData:
+            # First find the neighbors
+            neighbors = self.findNeighbors(testInstance.data)
+
+            # Now vote on what that data set is
+            vote = self.getVote(neighbors)
+
+            # Save the prediction
+            predictions.append(vote)
+
+        return predictions
 
 
 ##########################################
@@ -182,10 +259,10 @@ class Classifier:
     ###########################################
     def runTest(self):
         # Create a new instance of the class HardCoded
-        hardCoded = HardCoded(self.trainSet)
+        hardCoded = HardCoded(self.trainSet, 3)
 
         # Now test it
-        results = hardCoded.predict(self.testSet, 1)
+        results = hardCoded.predict(self.testSet)
 
         # See how accurate it is
         count = 0
