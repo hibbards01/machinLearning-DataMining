@@ -313,6 +313,51 @@ class Classifier:
 
         return
 
+    ###########################################
+    # runKNeigborsClassifier
+    #   This will use the kNeighborsClassifier.
+    ###########################################
+    def runKNeigborsClassifier(self, k):
+        # Make sure we have a k
+        if k is None:
+            k = 1
+        else:
+            k = int(k)
+
+        # Grab the data and make it work with this
+        train = []
+        targets = []
+        test = []
+        testTargets = []
+        for i in self.trainSet:
+            train.append(i.data)
+            targets.append(i.target)
+
+        for i in self.testSet:
+            test.append(i.data)
+            testTargets.append(i.target)
+
+        # Now import the classifier
+        from sklearn.neighbors import KNeighborsClassifier
+
+        # Train
+        classifier = KNeighborsClassifier(n_neighbors=k)
+        classifier.fit(train, targets)
+
+        # Now predict
+        predictions = classifier.predict(test)
+
+        # See how accurate it is
+        count = 0
+        for i, data in enumerate (testTargets):
+            if data == predictions[i]:
+                count += 1
+
+        # Print out the results
+        print('\nHere are test results: \n'
+            '\tKNeighborsClassifier algorithm was %0.2f%% accurate\n' % ((count / len(self.testSet) * 100)))
+
+
 ###########################################
 # readFile
 #   This will read the file that was given
@@ -345,13 +390,15 @@ def readFile(fileName, saveData):
 ###########################################
 def main(argv):
     # Grab the arguments
-    inputs = {'-file': None, '-train': None, '-test': None, '-help': False, '-k': None}
+    inputs = {'-file': None, '-train': None, '-test': None, '-help': False, '-k': None, '-kn': None}
     error = None
 
     # Loop through argv
     for i, input in enumerate (argv):
         if input in inputs:
             if input == '-help':
+                inputs[input] = True
+            elif input == '-kn':
                 inputs[input] = True
             elif input == '-file':
                 inputs[input] = argv[i + 1]
@@ -378,6 +425,7 @@ def main(argv):
             '\t-k,     Give a number for how many k-neighbors should be used to predict the value. DEFAULT 1\n'
             '\t-file,  Give a .csv file for the data that you want to test against. OPTIONAL.\n'
             '\t        DEFAULT Iris data will be tested.\n'
+            '\t-kn,    Test the data with an existing implementation.\n'
             '\t-help,  Show this.\n')
     else:
         file = {'data': [], 'targets': []}
@@ -397,11 +445,15 @@ def main(argv):
         # Now create the classifier class
         classifier = Classifier(inputs['-train'], inputs['-test'])
 
-        # Now give the data to the classifier
+        # now give the data to the classifier
         classifier.saveData(file['data'], file['targets'], inputs['-file'])
 
-        # Finally test the algorithm
-        classifier.runTest(inputs['-k'])
+        # Either run my algorithm or the one given to me
+        if inputs['-kn'] is not None:
+            classifier.runKNeigborsClassifier(inputs['-k'])
+        else:
+            # Finally test the algorithm
+            classifier.runTest(inputs['-k'])
 
     return
 
