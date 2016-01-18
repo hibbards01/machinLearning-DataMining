@@ -13,7 +13,6 @@
 # Import some libraries
 import sys
 import random
-import csv
 import math
 import operator
 
@@ -227,29 +226,41 @@ class Classifier:
     #       and save it to the trainSet and testSet
     #       variables.
     ###########################################
-    def saveData(self, irisData):
-        iris       = [] # Save all the data sets
-        size       = 0
+    def saveData(self, dataSet, targets, isFile):
+        saveData = [] # Save all the data sets
+        size = 0
 
         # Loop through the data
-        for i, data in enumerate (irisData.data):
+        for i, data in enumerate (dataSet):
             # Create a new DataSet
-            iris.append(DataSet(data, irisData.target[i]))
+            saveData.append(DataSet(data, targets[i]))
 
             # Save the size
             size += 1
 
         # Randomize the list
-        random.shuffle(iris)
+        random.shuffle(saveData)
 
         # Grab how many for each set
         train = int(self.train * size)
         test  = train + int(self.train * size) + 1
 
         # Now save into the trainSet and testSet lists
-        self.trainSet = iris[0:train]
-        self.testSet  = iris[train:test]
+        self.trainSet = saveData[0:train]
+        self.testSet  = saveData[train:test]
 
+        # Do we need to change the data?
+        if isFile is not None:
+
+
+        return
+
+    ###########################################
+    # changeData
+    #   This will change the data to numbers so
+    #       so that the data will be easier to use.
+    ###########################################
+    def changeData(self):
         return
 
     ###########################################
@@ -277,35 +288,62 @@ class Classifier:
         return
 
 ###########################################
+# readFile
+#   This will read the file that was given
+#       by the user.
+###########################################
+def readFile(fileName, saveData):
+    # Open the file
+    file = open(fileName, 'r')
+
+    # Read line by line
+    for line in file:
+        # Make it into an array
+        array = line.split(',')
+
+        # Grab the length
+        size = len(array)
+
+        # Split the array and save it
+        saveData['data'].append(array[0:(size - 1)])
+        saveData['targets'].append(array[size - 1].replace('\n', ''))
+
+    # Close the file
+    file.close()
+
+    return
+
+###########################################
 # Main
 #   Main driver of the program
 ###########################################
 def main(argv):
     # Grab the arguments
-    helpI = False
-    train = None
-    test  = None
-    csv  = None
-    for i, input in enumerate (argv):
-        # See what was inputed
-        if input == '-train' and (i + 1) < len(argv):
-            train = float(argv[i + 1])
-        elif input == '-test' and (i + 1) < len(argv):
-            test = float(argv[i + 1])
-        elif input == '-help':
-            helpI = True
-        elif input == '-file' and (i + 1) < len(argv):
-            csv = argv[i + 1]
+    inputs = {'-file': None, '-train': None, '-test': None, '-help': False}
+    error = None
 
+    # Loop through argv
+    for i, input in enumerate (argv):
+        if input in inputs:
+            if input == '-help':
+                inputs[input] = True
+            elif input == '-file':
+                inputs[input] = argv[i + 1]
+            elif (i + 1) < len(argv):
+                inputs[input] = float(argv[i + 1])
+            else:
+                error = '\nError: There was no value provided after the option: %s\nType -help for help\n' % input
 
     # Make sure they both work
-    if train is not None and test is not None:
-        if (train + test) < 1.0 or (train + test) > 1.0:
-            print('\nError with your train and test values. They must add up to 1.0.\n\n')
-            return
+    if inputs['-train'] is not None and inputs['-test'] is not None:
+        total = inputs['-train'] + inputs['-test']
+        if total < 1.0 or total > 1.0:
+            error = '\nError with your train and test values. They must add up to 1.0.\n'
 
     # See what was passed
-    if helpI:
+    if error is not None:
+        print(error)
+    elif inputs['-help']:
         print('\nCommand line arguments for classifier.py:\n\n'
             '    py classifier.py [options] [value]\n\n'
             '    Options:\n'
@@ -313,24 +351,30 @@ def main(argv):
             '\t-test,  Give a percent of what this should be tested on. OPTIONAL. Default 0.3\n'
             '\t-file,  Give a .csv file for the data that you want to test against. OPTIONAL.\n'
             '\t        DEFAULT Iris data will be tested.\n'
-            '\t-help,  Show this.\n\n')
-    else :
+            '\t-help,  Show this.\n')
+    else:
+        file = {'data': [], 'targets': []}
+
         # Import the data set
-        data = []
-        if csv is not None:
-            data = []
+        if inputs['-file'] is not None:
+            readFile(inputs['-file'], file)
         else :
+            # Grab from the iris
             from sklearn import datasets
-            data = datasets.load_iris();
+            iris = datasets.load_iris();
+
+            # Save it
+            file['data'] = iris.data
+            file['targets'] = iris.target
 
         # Now create the classifier class
-        classifier = Classifier(train, test)
+        classifier = Classifier(inputs['-train'], inputs['-test'])
 
-        # Now give the data to the classifier
-        classifier.saveData(data)
+        # # Now give the data to the classifier
+        classifier.saveData(file['data'], file['targets'], inputs['-file'])
 
-        # Finally test the algorithm
-        classifier.runTest()
+        # # Finally test the algorithm
+        # classifier.runTest()
 
     return
 
