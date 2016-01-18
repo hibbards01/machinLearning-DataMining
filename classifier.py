@@ -8,6 +8,10 @@
 #   This will be the start of the Classifier. This will
 #     take in a data set and give an ouptut of what it
 #     evaluated from the data set.
+#   Give credit to this website:
+#       http://machinelearningmastery.com/tutorial-to-implement-k-nearest-neighbors-in-python-from-scratch/
+#       This is what helped me to know how to implement
+#       the algorithm.
 #######################################################
 
 # Import some libraries
