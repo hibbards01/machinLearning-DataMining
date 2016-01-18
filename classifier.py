@@ -46,7 +46,7 @@ class HardCoded:
     # Member variables
     #
     trainData = []
-    k = 0
+    k = 1
 
     #
     # Member methods
@@ -56,7 +56,9 @@ class HardCoded:
     ###########################################
     def __init__(self, trainingData, k):
         self.trainData = trainingData
-        self.k = k
+
+        if k is not None:
+            self.k = int(k)
 
         # Normalize the data
         self.trainData = self.normalize(self.trainData)
@@ -73,8 +75,8 @@ class HardCoded:
         # Grab the number of attributes
         num = len(dataSet[0].data)
 
-        # Create an dictionary array. This will save the columns
-        attributeValues = [[]] * num
+        # Create an array of arrays. This will save the columns
+        attributeValues = [[] for i in range(num)]
 
         # Split the attributes by it's columns
         for attributes in dataSet:
@@ -241,6 +243,10 @@ class Classifier:
         # Randomize the list
         random.shuffle(saveData)
 
+        # Do we need to change the data?
+        if isFile is not None:
+            self.changeData(saveData)
+
         # Grab how many for each set
         train = int(self.train * size)
         test  = train + int(self.train * size) + 1
@@ -249,10 +255,6 @@ class Classifier:
         self.trainSet = saveData[0:train]
         self.testSet  = saveData[train:test]
 
-        # Do we need to change the data?
-        if isFile is not None:
-
-
         return
 
     ###########################################
@@ -260,7 +262,27 @@ class Classifier:
     #   This will change the data to numbers so
     #       so that the data will be easier to use.
     ###########################################
-    def changeData(self):
+    def changeData(self, saveData):
+        # How many attributes are we changing?
+        num           = len(saveData[0].data)    # The number of attributes
+        attributes    = [{} for i in range(num)] # This will save the attribute values
+        attributeNums = [1 for i in range(num)]  # This will increment the number if a new attribute
+                                                 # is defined.
+        # Loop through the data
+        for dataSet in saveData:
+            # Loop through the attributes
+            for i, attribute in enumerate (dataSet.data):
+                # Now check to see if that attribute has been already been seen or not
+                if attribute not in attributes[i]:
+                    # This is a new attribute
+                    attributes[i][attribute] = attributeNums[i]
+
+                    # Increment the value
+                    attributeNums[i] += 1
+
+                # Change the value
+                dataSet.data[i] = attributes[i][attribute]
+
         return
 
     ###########################################
@@ -268,9 +290,9 @@ class Classifier:
     #   This will train, test, and print out the
     #     results of the algorithm.
     ###########################################
-    def runTest(self):
+    def runTest(self, k):
         # Create a new instance of the class HardCoded
-        hardCoded = HardCoded(self.trainSet, 3)
+        hardCoded = HardCoded(self.trainSet, k)
 
         # Now test it
         results = hardCoded.predict(self.testSet)
@@ -283,7 +305,7 @@ class Classifier:
 
         # Print out the results
         print('\nHere are test results: \n'
-            '\tAlgorithm was %f accurate\n' % (count / len(self.testSet)))
+            '\tAlgorithm was %0.2f%% accurate\n' % ((count / len(self.testSet) * 100)))
 
         return
 
@@ -319,7 +341,7 @@ def readFile(fileName, saveData):
 ###########################################
 def main(argv):
     # Grab the arguments
-    inputs = {'-file': None, '-train': None, '-test': None, '-help': False}
+    inputs = {'-file': None, '-train': None, '-test': None, '-help': False, '-k': None}
     error = None
 
     # Loop through argv
@@ -349,6 +371,7 @@ def main(argv):
             '    Options:\n'
             '\t-train, Give a percent of what this should be trained on. OPTIONAL. Default 0.7\n'
             '\t-test,  Give a percent of what this should be tested on. OPTIONAL. Default 0.3\n'
+            '\t-k,     Give a number for how many k-neighbors should be used to predict the value. DEFAULT 1\n'
             '\t-file,  Give a .csv file for the data that you want to test against. OPTIONAL.\n'
             '\t        DEFAULT Iris data will be tested.\n'
             '\t-help,  Show this.\n')
@@ -358,7 +381,7 @@ def main(argv):
         # Import the data set
         if inputs['-file'] is not None:
             readFile(inputs['-file'], file)
-        else :
+        else:
             # Grab from the iris
             from sklearn import datasets
             iris = datasets.load_iris();
@@ -370,11 +393,11 @@ def main(argv):
         # Now create the classifier class
         classifier = Classifier(inputs['-train'], inputs['-test'])
 
-        # # Now give the data to the classifier
+        # Now give the data to the classifier
         classifier.saveData(file['data'], file['targets'], inputs['-file'])
 
-        # # Finally test the algorithm
-        # classifier.runTest()
+        # Finally test the algorithm
+        classifier.runTest(inputs['-k'])
 
     return
 
