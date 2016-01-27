@@ -11,56 +11,174 @@
 # Import some files
 import sys
 import numpy as np
+import random
 
-###########################################
-# readFile
-#   This will read the file that was given
-#       by the user.
-###########################################
-def readFile(fileName, saveData):
-    # Open the file
-    file = open(fileName, 'r')
+##########################################
+# DecisionTree
+##########################################
+class DecisionTree:
+    ###########################################
+    # Constructor
+    ###########################################
+    def __init__(self, data):
+        self.train(data)
 
-    # Read line by line
-    for line in file:
-        # Make it into an array
-        array = line.split(',')
+    ###########################################
+    # train
+    #   Create the tree based off the training data.
+    ###########################################
+    def train(self, train):
+        return
 
-        # Grab the length
-        size = len(array)
+    ###########################################
+    # predict
+    #   Predict the values based off the testing data.
+    ###########################################
+    def predict(self, test):
+        return
 
-        # Split the array and save it
-        saveData.append(array)
+##########################################
+# Classifier
+##########################################
+class Classifier:
+    #
+    # Member variables
+    #
+    data       = []
+    predictCol = -1
+    inputs     = []
 
-    # Close the file
-    file.close()
+    ###########################################
+    # Constructor
+    ###########################################
+    def __init__(self, inputs):
+        # Read the data
+        self.readFile(inputs['-file'])
 
-    return
+        if inputs['-predict'] is None:
+            self.predictCol = 4
+        else:
+            self.predictCol = inputs['-predict']
 
-###########################################
-# startProgram
-#   This will take the arguments and run
-#       the program according to the inputs.
-###########################################
-def startProgram(inputs):
-    # What data are we using?
-    data = []
-    if inputs['-file'] is not None:
-        readFile(inputs['-file'], data)
-    else:
-        # Else use the iris data
-        from sklearn import datasets
-        iris = datasets.load_iris()
+        # Now change it
+        self.changeData()
 
-        # Finally save the iris data
-        values = np.array(iris.data)
-        targets = iris.target
+        # Save the inputs
+        self.inputs = inputs
 
-        # Add the targets
-        for i, array in enumerate(values):
-            data.append(np.append(values[i], targets[i]))
+    ###########################################
+    # readFile
+    #   This will read the file that was given
+    #       by the user. Or read the iris data.
+    ###########################################
+    def readFile(self, fileName):
+        if fileName is not None:
+            # Open the file
+            file = open(fileName, 'r')
 
-    return
+            # Read line by line
+            for line in file:
+                # Make it into an array
+                array = line.split(',')
+
+                # Grab the length
+                size = len(array)
+
+                # Split the array and save it
+                self.data.append(array)
+
+            # Close the file
+            file.close()
+        else:
+            # Else use the iris data
+            from sklearn import datasets
+            iris = datasets.load_iris()
+
+            # Finally save the iris data
+            values = np.array(iris.data)
+            targets = iris.target
+
+            # Add the targets
+            for i, array in enumerate(values):
+                self.data.append(np.append(values[i], targets[i]))
+
+        return
+
+    ###########################################
+    # changeData
+    #   This will change the data so that it will
+    #       work for the decision tree.
+    ###########################################
+    def changeData(self):
+        # Grab the number of attributes
+        num = len(self.data[0])
+
+        # Create an array of arrays. This will save the columns
+        attributeValues = [[] for i in range(num)]
+
+        # Split the attributes by it's columns
+        for attributes in self.data:
+            # Now loop through the columns
+            for i, attribute in enumerate (attributes):
+                # Now save it
+                attributeValues[i].append(attribute)
+
+        # Now loop through the attributes
+        for i, attribute in enumerate (attributeValues):
+            # Don't change the predictions
+            if i != self.predictCol:
+                # Find low, max, and middle
+                low = min(attribute)
+                m = max(attribute)
+                middle = (low + m) / 2
+
+                # Grab the med, high values
+                med  = (low + middle) / 2
+                high = (middle + m) / 2
+
+                # Now loop through the attribute and change them
+                for j, value in enumerate (attribute):
+                    newValue = 'H'
+                    if value < med:
+                        newValue = 'L'
+                    elif value < high:
+                        newValue = 'M'
+
+                    # Assign the new value
+                    attribute[j] = newValue
+
+        # Now save the values into the original data
+        self.data = attributeValues
+
+        return
+
+    ###########################################
+    # startProgram
+    #   This will take the arguments and run
+    #       the program according to the inputs.
+    ###########################################
+    def startProgram(self):
+        # Randomize the data
+        random.shuffle(self.data)
+
+        # Grab the size
+        size = len(self.data)
+
+        # Grab how many for each set
+        trainIndex = int(0.7 * size)
+        testIndex  = int(size + 1)
+
+        # Now save into the trainSet and testSet lists
+        train = self.data[0:trainIndex]
+        test  = self.data[trainIndex:testIndex]
+
+        # Finally start the test
+        tree = DecisionTree(train)
+
+        # Now predict the values
+        tree.predict(test)
+
+        return
 
 ###############################################
 # main
@@ -101,15 +219,16 @@ def main(argv):
         print('\nCommand line arguments for decision_tree.py:\n\n'
             '    py decision_tree.py [options] [value]\n\n'
             '    Options:\n'
-            '\t-file,    Give a .csv file for the data that you want to test against.'
-            '\t          If given then option -predict must be given. OPTIONAL.\n'
-            '\t-predict, The column of the data that you want to predict. OPTIONAL.\n'
+            '\t-file,    Give a .csv file for the data that you want to test against. OPTIONAL.\n'
+            '\t          If given then option -predict must be given.\n'
             '\t          DEFAULT Iris data will be tested.\n'
+            '\t-predict, The column of the data that you want to predict. OPTIONAL.\n'
             '\t-tree,    Test the data with an existing implementation.\n'
             '\t-help,    Show this.\n')
     else:
         # Run the program
-        startProgram(inputs)
+        classifier = Classifier(inputs)
+        classifier.startProgram()
 
     return
 
