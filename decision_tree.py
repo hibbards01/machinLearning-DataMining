@@ -124,6 +124,7 @@ class Classifier:
                 attributeValues[i].append(attribute)
 
         # Now loop through the attributes
+        newValues = []
         for i, attribute in enumerate (attributeValues):
             # Don't change the predictions
             if i != self.predictCol:
@@ -136,19 +137,25 @@ class Classifier:
                 med  = (low + middle) / 2
                 high = (middle + m) / 2
 
-                # Now loop through the attribute and change them
-                for j, value in enumerate (attribute):
-                    newValue = 'H'
-                    if value < med:
-                        newValue = 'L'
-                    elif value < high:
-                        newValue = 'M'
+                # Save the values
+                newValues.append([med, high])
+            else:
+                newValues.append([])
+
+        # Now change the original data
+        for r, row in enumerate (self.data):
+            for c, col in enumerate (row):
+                if newValues[c]:
+                    newValue = 1
+
+                    # Check the values
+                    if col < newValues[c][0]:
+                        newValue = -1
+                    elif col < newValues[c][1]:
+                        newValue = 0
 
                     # Assign the new value
-                    attribute[j] = newValue
-
-        # Now save the values into the original data
-        self.data = attributeValues
+                    row[c] = newValue
 
         return
 
