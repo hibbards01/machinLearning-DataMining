@@ -17,18 +17,75 @@ import random
 # DecisionTree
 ##########################################
 class DecisionTree:
+    #
+    # Member variables
+    #
+    root = {}
+
     ###########################################
     # Constructor
     ###########################################
-    def __init__(self, data):
-        self.train(data)
+    def __init__(self, data, targetCol):
+        # Set the available attriubtes
+        availableAtts = [i for i in range(len(data[0]) - 1)]
+
+        # Begin the training
+        self.root = self.train(self.root, data, availableAtts, targetCol)
+
+    ###########################################
+    # calcEntropy
+    #   This will find the best entropy among the
+    #       given attributes.
+    ###########################################
+    def calcEntropy(self, data, availableAtts, targetCol):
+        # Grab all the targets
+        targets = []
+        totalSize = 0
+        for row in data:
+            targets.append(row[targetCol])
+            totalSize += 1
+
+        # Loop through each of the attributes
+        gain = 0.0
+        for attribute in availableAtts:
+            values = {}
+
+            # Now loop through the data to grab it all
+            for i, row in enumerate (data):
+                if row[attribute] not in values:
+                    values.update({row[attribute] : []})
+
+                values[row[attribute]].append(targets[i])
+
+            # Now loop though the values
+            for value in values:
+                # Collect how many times that they appear
+                from collections import Counter
+                collect = Counter(values[value])
+
+                # Grab the size
+                size = sum(collect.values())
+
+                # Loop through the collect
+                entropySum = 0
+                for key in collect:
+                    # Now add up the entropies
+                    entropySum += -(collect[key] / size) * np.log2(collect[key] / size)
+
+                # Finally add up the gain
+                gain += (size / totalSize) * entropySum
+
+            print(gain)
+            print("DONE")
+        return
 
     ###########################################
     # train
     #   Create the tree based off the training data.
     ###########################################
-    def train(self, train):
-        return
+    def train(self, node, data, availableAtts, targetCol):
+        self.calcEntropy(data, availableAtts, targetCol)
+        return node
 
     ###########################################
     # predict
@@ -180,7 +237,7 @@ class Classifier:
         test  = self.data[trainIndex:testIndex]
 
         # Finally start the test
-        tree = DecisionTree(train)
+        tree = DecisionTree(train, self.predictCol)
 
         # Now predict the values
         tree.predict(test)
