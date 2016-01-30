@@ -12,6 +12,7 @@
 import sys
 import numpy as np
 import random
+from collections import Counter
 
 ##########################################
 # DecisionTree
@@ -31,6 +32,7 @@ class DecisionTree:
 
         # Begin the training
         self.root = self.train(self.root, data, availableAtts, targetCol)
+        print(self.root)
 
     ###########################################
     # calcEntropy
@@ -38,9 +40,6 @@ class DecisionTree:
     #       given attributes.
     ###########################################
     def calcEntropy(self, data, availableAtts, targetCol):
-        # Import Counter
-        from collections import Counter
-
         # Grab all the targets
         targets = []
         totalSize = 0
@@ -49,14 +48,14 @@ class DecisionTree:
             totalSize += 1
 
         # Loop through each of the attributes
-        gain = 999999999
+        gain = {'attribute' : None, 'value' : 99999999}
         for attribute in availableAtts:
             values = {}
 
             # Now loop through the data to grab it all
             for i, row in enumerate (data):
                 if row[attribute] not in values:
-                    values.update({row[attribute] : []})
+                    values.update({row[attribute]: []})
 
                 values[row[attribute]].append(targets[i])
 
@@ -79,16 +78,82 @@ class DecisionTree:
                 finalEntropy += (size / totalSize) * entropySum
 
             # Who won?
-            if finalEntropy < gain:
-                gain = finalEntropy
-        return
+            if finalEntropy < gain['value']:
+                gain['attribute'] = attribute
+                gain['value'] = finalEntropy
+
+        return gain['attribute']
+
+    ###########################################
+    # checkForSameTarget
+    #   This will check the target values and
+    #       return how many they are left.
+    ###########################################
+    def checkForSameTarget(self, data, targetCol):
+        # Grab from the targetCol
+        targets = []
+        for row in data:
+            targets.append(row[targetCol])
+
+        # Now count up all the targets
+        targets = Counter(targets)
+
+        return dict(targets)
 
     ###########################################
     # train
     #   Create the tree based off the training data.
     ###########################################
     def train(self, node, data, availableAtts, targetCol):
-        self.calcEntropy(data, availableAtts, targetCol)
+        # Do we have all the same class?
+        targets = self.checkForSameTarget(data, targetCol)
+
+        # If we do then we are done with this branch put in the value
+        if len(targets) == 1:
+            # Grab the key
+            key = list(targets.keys())
+
+            # Finally update it!
+            node.update({'predict': key[0]})
+        elif len(availableAtts) == 0:
+            # We have run out of questions...
+            # Use the target with the most numbers
+            winners = list(targets.keys())
+            values  = list(targets.values())
+
+            # Grab the winner
+            winner = winners[values.index(max(values))]
+
+            # Now add to the node
+            node.update({'predict': winner})
+        else:
+            # Who won?
+            winner = self.calcEntropy(data, availableAtts, targetCol)
+
+            # Split the data based off the winner
+            dataBranches = {}
+            for row in data:
+                # Add a new branch if we don't have the key
+                if row[winner] not in dataBranches:
+                    dataBranches.update({row[winner]: []})
+
+                # Add to the dictionary
+                dataBranches[row[winner]].append(row)
+
+            # Add the root to the node
+            node.update({winner: {}})
+
+            # Take off an attribute
+            availableAtts.remove(winner)
+
+            # Now loop through each of the branches
+            for branch in dataBranches:
+                # Add a new node to this node
+                node[winner].update({branch: {}})
+
+                # Now call train again and do this recursively
+                self.train(node[winner][branch], dataBranches[branch], availableAtts, targetCol)
+
         return node
 
     ###########################################
