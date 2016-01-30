@@ -38,6 +38,9 @@ class DecisionTree:
     #       given attributes.
     ###########################################
     def calcEntropy(self, data, availableAtts, targetCol):
+        # Import Counter
+        from collections import Counter
+
         # Grab all the targets
         targets = []
         totalSize = 0
@@ -46,7 +49,7 @@ class DecisionTree:
             totalSize += 1
 
         # Loop through each of the attributes
-        gain = 0.0
+        gain = 999999999
         for attribute in availableAtts:
             values = {}
 
@@ -58,9 +61,9 @@ class DecisionTree:
                 values[row[attribute]].append(targets[i])
 
             # Now loop though the values
+            finalEntropy = 0
             for value in values:
                 # Collect how many times that they appear
-                from collections import Counter
                 collect = Counter(values[value])
 
                 # Grab the size
@@ -73,10 +76,11 @@ class DecisionTree:
                     entropySum += -(collect[key] / size) * np.log2(collect[key] / size)
 
                 # Finally add up the gain
-                gain += (size / totalSize) * entropySum
+                finalEntropy += (size / totalSize) * entropySum
 
-            print(gain)
-            print("DONE")
+            # Who won?
+            if finalEntropy < gain:
+                gain = finalEntropy
         return
 
     ###########################################
