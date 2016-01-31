@@ -226,10 +226,11 @@ class Classifier:
         if inputs['-predict'] is None:
             self.predictCol = 4
         else:
-            self.predictCol = inputs['-predict']
+            self.predictCol = inputs['-predict'] - 1
 
         # Now change it
-        self.changeData()
+        if inputs['-nominal'] is None:
+            self.changeData()
 
         # Save the inputs
         self.program = inputs['-tree']
@@ -349,7 +350,11 @@ class Classifier:
             trainTargets = []
             for row in train:
                 trainTargets.append(row[self.predictCol])
-                newTrain.append(row[0:self.predictCol])
+                grabCol = []
+                for i, col in enumerate (row):
+                    if i != self.predictCol:
+                        grabCol.append(col)
+                newTrain.append(grabCol)
 
             newTest = []
             for row in test:
@@ -373,7 +378,7 @@ class Classifier:
 
         # Print out the results
         print('\nHere are test results: \n'
-            '\tKNeighborsClassifier algorithm was %0.2f%% accurate\n' % ((count / len(test) * 100)))
+            '\tDecisionTreeClassifier algorithm was %0.2f%% accurate\n' % ((count / len(test) * 100)))
 
         return
 
@@ -412,7 +417,7 @@ class Classifier:
 ###############################################
 def main(argv):
     # Possible arguments
-    inputs = {'-file': None, '-predict': None, '-tree': None, '-help': None}
+    inputs = {'-file': None, '-predict': None, '-tree': None, '-help': None, '-nominal': None}
     error = None
 
     # Loop through the arguments
@@ -420,7 +425,7 @@ def main(argv):
         # See if this is an input
         if input in inputs:
             # Now is which one it is
-            if input == '-tree' or input == '-help':
+            if input == '-tree' or input == '-help' or input == '-nominal':
                 inputs[input] = True
             elif (i + 1) < len(argv):
                 if input == '-file':
@@ -445,6 +450,7 @@ def main(argv):
             '\t-file,    Give a .csv file for the data that you want to test against. OPTIONAL.\n'
             '\t          If given then option -predict must be given.\n'
             '\t          DEFAULT Iris data will be tested.\n'
+            '\t-nominal, If the data is nominal use this for the script.\n'
             '\t-predict, The column of the data that you want to predict. OPTIONAL.\n'
             '\t-tree,    Test the data with an existing implementation.\n'
             '\t-help,    Show this.\n')
