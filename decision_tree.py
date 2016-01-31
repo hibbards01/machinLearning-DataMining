@@ -12,6 +12,7 @@
 import sys
 import numpy as np
 import random
+import json
 from collections import Counter
 
 ##########################################
@@ -22,19 +23,23 @@ class DecisionTree:
     # Member variables
     #
     root   = {}
-    target = -1
 
     ###########################################
     # Constructor
     ###########################################
     def __init__(self, data, targetCol):
         # Set the available attriubtes
-        availableAtts = [i for i in range(len(data[0]) - 1)]
-
-        self.target = targetCol
+        availableAtts = []
+        for i in range(len(data[0]) - 1):
+            if i != targetCol:
+                availableAtts.append(i)
 
         # Begin the training
         self.root = self.train(self.root, data, availableAtts, targetCol)
+
+        # Show the tree
+        print("\nTree:\n")
+        print(json.dumps(self.root, sort_keys=True, indent=4))
 
     ###########################################
     # calcEntropy
@@ -209,7 +214,7 @@ class Classifier:
     #
     data       = []
     predictCol = -1
-    inputs     = []
+    program    = None
 
     ###########################################
     # Constructor
@@ -227,7 +232,7 @@ class Classifier:
         self.changeData()
 
         # Save the inputs
-        self.inputs = inputs
+        self.program = inputs['-tree']
 
     ###########################################
     # readFile
@@ -242,7 +247,10 @@ class Classifier:
             # Read line by line
             for line in file:
                 # Make it into an array
-                array = line.split(',')
+                if ',' in line:
+                    array = line.split(',')
+                else:
+                    array = line.split(' ')
 
                 # Grab the length
                 size = len(array)
@@ -323,6 +331,53 @@ class Classifier:
         return
 
     ###########################################
+    # whichProgram
+    #   Which program are we running?
+    ###########################################
+    def whichProgram(self, train, test):
+        # Do the program based off the inputs
+        predictions = None
+        if self.program is None:
+            # Finally start the test
+            tree = DecisionTree(train, self.predictCol)
+
+            # Now predict
+            predictions = tree.predict(test)
+        else:
+            # Change the data back for the classifier
+            newTrain = []
+            trainTargets = []
+            for row in train:
+                trainTargets.append(row[self.predictCol])
+                newTrain.append(row[0:self.predictCol])
+
+            newTest = []
+            for row in test:
+                newTest.append(row[0:self.predictCol])
+
+            # Grab the classifier
+            from sklearn import tree
+            decisionTree = tree.DecisionTreeClassifier()
+
+            # Now train it
+            decisionTree.fit(newTrain, trainTargets)
+
+            # Now predict it
+            predictions = decisionTree.predict(newTest)
+
+        # See how accurate it is
+        count = 0
+        for i, data in enumerate (test):
+            if data[self.predictCol] == predictions[i]:
+                count += 1
+
+        # Print out the results
+        print('\nHere are test results: \n'
+            '\tKNeighborsClassifier algorithm was %0.2f%% accurate\n' % ((count / len(test) * 100)))
+
+        return
+
+    ###########################################
     # startProgram
     #   This will take the arguments and run
     #       the program according to the inputs.
@@ -342,23 +397,11 @@ class Classifier:
         train = self.data[0:trainIndex]
         test  = self.data[trainIndex:testIndex]
 
-        # Finally start the test
-        tree = DecisionTree(train, self.predictCol)
-
-        # Now predict
-        predictions = tree.predict(test)
-
-        # See how accurate it is
-        count = 0
-        for i, data in enumerate (test):
-            if data[self.predictCol] == predictions[i]:
-                count += 1
-
-        # Print out the results
-        print('\nHere are test results: \n'
-            '\tKNeighborsClassifier algorithm was %0.2f%% accurate\n' % ((count / len(test) * 100)))
+        # Finally start the program
+        self.whichProgram(train, test)
 
         return
+
 
 ###############################################
 # main
