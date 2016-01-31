@@ -21,7 +21,8 @@ class DecisionTree:
     #
     # Member variables
     #
-    root = {}
+    root   = {}
+    target = -1
 
     ###########################################
     # Constructor
@@ -30,9 +31,10 @@ class DecisionTree:
         # Set the available attriubtes
         availableAtts = [i for i in range(len(data[0]) - 1)]
 
+        self.target = targetCol
+
         # Begin the training
         self.root = self.train(self.root, data, availableAtts, targetCol)
-        print(self.root)
 
     ###########################################
     # calcEntropy
@@ -157,11 +159,46 @@ class DecisionTree:
         return node
 
     ###########################################
+    # traverseTree
+    #   Traverse the tree to find the answer.
+    ###########################################
+    def traverseTree(self, data, node):
+        # Grab the final answer
+        finalAnswer = None
+
+        # Ask the question
+        question = list(node.keys())
+
+        # If key is not 'predict' then we ask the question...
+        if question[0] != 'predict':
+            answer = data[question[0]]
+
+            # Make sure there is a path
+            if answer in node[question[0]]:
+                # Now go done the branch based upon the answer
+                finalAnswer = self.traverseTree(data, node[question[0]][answer])
+            else:
+                finalAnswer = 'unknown'
+        else:
+            finalAnswer = node[question[0]]
+
+        return finalAnswer
+
+    ###########################################
     # predict
     #   Predict the values based off the testing data.
     ###########################################
     def predict(self, test):
-        return
+        # Loop through the test results
+        predictions = []
+        for row in test:
+            # Grab the answer
+            answer = self.traverseTree(row, self.root)
+
+            # Save it
+            predictions.append(answer)
+
+        return predictions
 
 ##########################################
 # Classifier
@@ -308,8 +345,18 @@ class Classifier:
         # Finally start the test
         tree = DecisionTree(train, self.predictCol)
 
-        # Now predict the values
-        tree.predict(test)
+        # Now predict
+        predictions = tree.predict(test)
+
+        # See how accurate it is
+        count = 0
+        for i, data in enumerate (test):
+            if data[self.predictCol] == predictions[i]:
+                count += 1
+
+        # Print out the results
+        print('\nHere are test results: \n'
+            '\tKNeighborsClassifier algorithm was %0.2f%% accurate\n' % ((count / len(test) * 100)))
 
         return
 
