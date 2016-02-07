@@ -184,7 +184,7 @@ def main(argv):
 
     # Make sure nodes was created
     if inputs['-nodes'] is None:
-        error = '\nError: You must use the -nodes option.\n'
+        error = '\nError: You must use the -nodes option.\nType -help for help.\n\n'
 
     # Now do the operation
     if error is not None:
