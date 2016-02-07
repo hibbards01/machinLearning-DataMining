@@ -64,9 +64,12 @@ def readFile(fileName, data, targets):
         # Grab the length
         size = len(array)
 
+        # Convert strings to nums
+        array = [float(i) for i in array]
+
         # Split the array and save it
         data.append(array[0:(size - 1)])
-        targets.append(array[size - 1].replace('\n', ''))
+        targets.append(array[size - 1])
 
     # Close the file
     file.close()
@@ -97,7 +100,8 @@ class NeuralNetwork:
     #
     # Member variables
     #
-    nodes = []
+    nodes = []  # This will hold the weights
+    weights = 0 # How many weights do we have?
 
     #
     # Member methods
@@ -107,7 +111,48 @@ class NeuralNetwork:
     #   This will build the nodes and put all the
     #       weights into the nodes variable.
     ###########################################
-    def __init__(self, nodes, weights):
+    def __init__(self, num, weights):
+        # Create the nodes
+        self.nodes = [[] for i in range(num)]
+
+        # Add one to weight for a bias node
+        weights += 1
+
+        # Finally loop through each node and create random weights
+        for node in self.nodes:
+            # Add a weight
+            for i in range(weights):
+                node.append([random.uniform(-1, 1)])
+
+        self.weights = weights
+
+    ###########################################
+    # train
+    #   This will train the neural network based
+    #       of the data
+    ###########################################
+    def train(self, trainData, targets):
+        # Add the bias node
+        data = []
+        for i, row in enumerate(trainData):
+            data.append(np.append(row, -1))
+
+        # First loop through the data
+        for i, row in enumerate(data):
+            # Reshape the data
+            reshape = np.array(row).reshape(1, self.weights)
+
+            # Now times the two matrics together!
+            matrix = np.dot(self.nodes, reshape)
+
+            # Now sum up the total of the diagonals
+            sum = np.sum(matrix.diagonal(0,1,2), 1)
+
+            # Now change the ouputs to 0 and 1
+            sum[sum > 0] = 1
+            sum[sum <= 0] = 0
+
+        return
 
 
 ###############################################
@@ -175,8 +220,18 @@ def main(argv):
         # Randomize it
         randomize(data, targets)
 
+        # Split the data
+        train = int(len(data) * 0.7)
+        test  = len(data)
+
+        trainSet     = data[0:train]
+        testSet      = data[train:test]
+        trainTargets = targets[0:train]
+        testTargets  = targets[train:test]
+
         # Now start the neural network
         network = NeuralNetwork(inputs['-nodes'], len(data[0]))
+        network.train(trainSet, trainTargets)
 
     return
 
