@@ -16,6 +16,7 @@ import sys
 import numpy as np
 from copy import deepcopy
 import random
+import json
 
 ###########################################
 # normalize
@@ -111,18 +112,31 @@ class NeuralNetwork:
     #   This will build the nodes and put all the
     #       weights into the nodes variable.
     ###########################################
-    def __init__(self, num, weights):
-        # Create the nodes
-        self.nodes = [[] for i in range(num)]
+    def __init__(self, network, weights, classes):
+        # Grab how many layers and nodes
+        numNodes = [int(index) for index in network.split(',')]
+        layers   = len(numNodes) + 1 # For the final layer
+
+        # First create the layers
+        self.nodes = [[] for i in range(layers)]
+
+        # Now add the nodes to each layer
+        for l, layer in enumerate(self.nodes):
+            # Grab how many nodes
+            num = numNodes[l] if l < layers - 1 else classes
+
+            # Now create the nodes
+            for n in range(num):
+                layer.append([])
 
         # Add one to weight for a bias node
         weights += 1
 
-        # Finally loop through each node and create random weights
-        for node in self.nodes:
-            # Add a weight
-            for i in range(weights):
-                node.append([random.uniform(-1, 1)])
+        # Finally add the weights
+        for layer in self.nodes:
+            for node in layer:
+                for i in range(weights):
+                    node.append([random.uniform(-1,1)])
 
         self.weights = weights
 
@@ -138,19 +152,12 @@ class NeuralNetwork:
             data.append(np.append(row, -1))
 
         # First loop through the data
-        for i, row in enumerate(data):
-            # Reshape the data
-            reshape = np.array(row).reshape(1, self.weights)
+        # for i, row in enumerate(data):
+        #     # Reshape the data
+        #     reshape = np.array(row).reshape(1, self.weights)
 
-            # Now times the two matrics together!
-            matrix = np.dot(self.nodes, reshape)
-
-            # Now sum up the total of the diagonals
-            sum = np.sum(matrix.diagonal(0,1,2), 1)
-
-            # Now change the ouputs to 0 and 1
-            sum[sum > 0] = 1
-            sum[sum <= 0] = 0
+        #     # Now times the two matrics together!
+        #     matrix = np.dot(reshape, self.nodes)
 
         return
 
@@ -164,7 +171,7 @@ class NeuralNetwork:
 ###############################################
 def main(argv):
     # Possible arguments
-    inputs = {'-file': None, '-nodes': None, '-help': None, '-net': None}
+    inputs = {'-file': None, '-exist': None, '-help': None, '-net': None}
     error = None
 
     # Loop through the arguments
@@ -172,18 +179,18 @@ def main(argv):
         # See if this is an input
         if input in inputs:
             # Now is which one it is
-            if input == '-net' or input == '-help':
+            if input == '-exist' or input == '-help':
                 inputs[input] = True
             elif (i + 1) < len(argv):
                 if input == '-file':
                     inputs[input] = argv[i + 1]
-                elif input == '-nodes':
-                    inputs[input] = int(argv[i + 1])
+                elif input == '-net':
+                    inputs[input] = argv[i + 1]
             else:
                 error = '\nError: No value given for argument %s.\nType -help for help.\n\n' % input
 
     # Make sure nodes was created
-    if inputs['-nodes'] is None:
+    if inputs['-net'] is None and inputs['-help'] is None:
         error = '\nError: You must use the -nodes option.\nType -help for help.\n\n'
 
     # Now do the operation
@@ -195,8 +202,10 @@ def main(argv):
             '    Options:\n'
             '\t-file,    Give a .csv file for the data that you want to test against. OPTIONAL.\n'
             '\t          DEFAULT Iris data will be tested.\n'
-            '\t-nodes,   Specify how many nodes in the network. REQUIRED\n'
-            '\t-net,     Test data with exisiting implementation.\n'
+            '\t-net,     Specify how many hidden layers and nodes in the network. REQUIRED\n'
+            '\t          EXAMPLE: -net 2,3,3 This will create 3 layers with 2 nodes in the first,\n'
+            '\t          3 in the second, and 3 in the last layer. No spaces between commas.\n'
+            '\t-exist,   Test data with exisiting implementation.\n'
             '\t-help,    Show this.\n')
     else:
         # Grab the data
@@ -229,9 +238,12 @@ def main(argv):
         trainTargets = targets[0:train]
         testTargets  = targets[train:test]
 
+        # Grab how many classes
+        classes = len(set(targets))
+
         # Now start the neural network
-        network = NeuralNetwork(inputs['-nodes'], len(data[0]))
-        network.train(trainSet, trainTargets)
+        network = NeuralNetwork(inputs['-net'], len(data[0]), classes)
+        # network.train(trainSet, trainTargets)
 
     return
 
