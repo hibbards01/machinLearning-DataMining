@@ -101,8 +101,8 @@ class NeuralNetwork:
     #
     # Member variables
     #
-    nodes = []  # This will hold the weights
-    weights = 0 # How many weights do we have?
+    network = [] # This will hold the weights
+    inputs  = [] # This will hold the number of inputs for each layer
 
     #
     # Member methods
@@ -118,10 +118,10 @@ class NeuralNetwork:
         layers   = len(numNodes) + 1 # For the final layer
 
         # First create the layers
-        self.nodes = [[] for i in range(layers)]
+        self.network = [[] for i in range(layers)]
 
         # Now add the nodes to each layer
-        for l, layer in enumerate(self.nodes):
+        for l, layer in enumerate(self.network):
             # Grab how many nodes
             num = numNodes[l] if l < layers - 1 else classes
 
@@ -129,16 +129,18 @@ class NeuralNetwork:
             for n in range(num):
                 layer.append([])
 
-        # Add one to weight for a bias node
+        # Add one to the weights for a bias node
         weights += 1
+        numNodes = [i + 1 for i in numNodes]
+
+        # Put all the inputs together
+        self.inputs = [weights] + numNodes
 
         # Finally add the weights
-        for layer in self.nodes:
+        for l, layer in enumerate(self.network):
             for node in layer:
-                for i in range(weights):
+                for i in range(self.inputs[l]):
                     node.append([random.uniform(-1,1)])
-
-        self.weights = weights
 
     ###########################################
     # train
@@ -146,21 +148,29 @@ class NeuralNetwork:
     #       of the data
     ###########################################
     def train(self, trainData, targets):
-        # Add the bias node
+        # Add the bias node for all the inputs
         data = []
         for i, row in enumerate(trainData):
             data.append(np.append(row, -1))
 
         # First loop through the data
-        # for i, row in enumerate(data):
-        #     # Reshape the data
-        #     reshape = np.array(row).reshape(1, self.weights)
+        for i, row in enumerate(data):
+            # Grab the inputs and reshape it
+            inputs = np.array(row).reshape(1, self.inputs[0])
 
-        #     # Now times the two matrics together!
-        #     matrix = np.dot(reshape, self.nodes)
+            # Start looping through the layers
+            for l, layer in enumerate(self.network):
+                # Skip the first layer since the inputs were from the data set
+                if l > 0:
+                    # Add the bias to the new inputs
+                    newInputs = np.append(inputs, -1)
 
+                    # Then reshape it
+                    inputs = np.array(newInputs).reshape(1, self.inputs[l])
+
+                # Do the dot product
+                inputs = np.dot(inputs, layer)
         return
-
 
 ###############################################
 # main
@@ -191,7 +201,7 @@ def main(argv):
 
     # Make sure nodes was created
     if inputs['-net'] is None and inputs['-help'] is None:
-        error = '\nError: You must use the -nodes option.\nType -help for help.\n\n'
+        error = '\nError: You must use the -net option.\nType -help for help.\n\n'
 
     # Now do the operation
     if error is not None:
@@ -243,7 +253,7 @@ def main(argv):
 
         # Now start the neural network
         network = NeuralNetwork(inputs['-net'], len(data[0]), classes)
-        # network.train(trainSet, trainTargets)
+        network.train(trainSet, trainTargets)
 
     return
 
