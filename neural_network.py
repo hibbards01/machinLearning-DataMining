@@ -17,36 +17,7 @@ import numpy as np
 from copy import deepcopy
 import random
 import json
-
-###########################################
-# normalize
-#   This will change the data based off the
-#       standard deviation and mean.
-###########################################
-def normalize(dataSet):
-    # Grab the number of attributes
-    num = len(dataSet[0])
-
-    # Create an array of arrays. This will save the columns
-    attributeValues = [[] for i in range(num)]
-
-    # Split the attributes by it's columns
-    for attributes in dataSet:
-        # Now loop through the columns
-        for i, attribute in enumerate (attributes):
-            # Now save it
-            attributeValues[i].append(attribute)
-
-    # Grab the standard deviation and mean
-    stndDev = np.std(attributeValues, axis=1)
-    mean = np.mean(attributeValues, axis=1)
-
-    # Now save the zscore
-    for attributes in dataSet:
-        for i, attribute in enumerate (attributes):
-            attributes[i] = (attribute - mean[i]) / stndDev[i]
-
-    return dataSet
+import math
 
 ###########################################
 # readFile
@@ -74,22 +45,6 @@ def readFile(fileName, data, targets):
 
     # Close the file
     file.close()
-
-    return
-
-###########################################
-# randomize
-#   This will randomize the data and targets.
-###########################################
-def randomize(data, targets):
-    # Add the targets to the data
-    combine = list(zip(data, targets))
-
-    # Now randomize it
-    random.shuffle(combine)
-
-    # Now split them again
-    data, targets = zip(*combine)
 
     return
 
@@ -143,33 +98,209 @@ class NeuralNetwork:
                     node.append([random.uniform(-1,1)])
 
     ###########################################
-    # train
+    # activationFunction
+    #   This will do the calculation of wether
+    #       or not a node activated or not.
+    ###########################################
+    def activationFunction(self, outputs):
+        # Go through each of the outputs
+        for value in outputs[0]:
+            # Now do the equation
+            value[0] = 1 / (1 + math.exp(value[0]))
+
+        return outputs
+
+    ###########################################
+    # updateWeights
+    #   Update the weights if the feed forward
+    #
+    ###########################################
+    def updateWeights(self, inputs, outputs):
+        return
+
+    ###########################################
+    # feedNetwork
     #   This will train the neural network based
     #       of the data
     ###########################################
-    def train(self, trainData, targets):
+    def feedNetwork(self, data, targets, train=True):
         # Add the bias node for all the inputs
-        data = []
-        for i, row in enumerate(trainData):
-            data.append(np.append(row, -1))
+        newData = []
+        for i, row in enumerate(data):
+            newData.append(np.append(row, -1))
 
         # First loop through the data
-        for i, row in enumerate(data):
+        predictions = []
+        for i, row in enumerate(newData):
             # Grab the inputs and reshape it
             inputs = np.array(row).reshape(1, self.inputs[0])
 
             # Start looping through the layers
+            # saveInputs  = []
+            # saveOutputs = []
             for l, layer in enumerate(self.network):
                 # Skip the first layer since the inputs were from the data set
                 if l > 0:
+                    # See if the nodes were activiated
+                    outputs = self.activationFunction(inputs)
+
                     # Add the bias to the new inputs
-                    newInputs = np.append(inputs, -1)
+                    newInputs = np.append(outputs, -1)
 
                     # Then reshape it
                     inputs = np.array(newInputs).reshape(1, self.inputs[l])
 
+                # Save the inputs
+                # saveInputs.append(inputs)
+
                 # Do the dot product
                 inputs = np.dot(inputs, layer)
+
+            # Now find out which class had won
+            outputs = list(inputs[0])
+            winner = outputs.index(max(outputs))
+
+            # Save the predictions if we are testing
+            if train == False:
+                predictions.append(winner)
+
+        return predictions
+
+    ###########################################
+    # train
+    #   This will train the neural network.
+    ###########################################
+    def train(self, train, targets):
+        # Start the training
+        predictions = self.feedNetwork(train, targets)
+
+        return
+
+    ###########################################
+    # test
+    #   Test out the neural network. This will
+    #       print how accurate it is.
+    ###########################################
+    def test(self, test, targets):
+        # Start the testing
+        predictions = self.feedNetwork(test, targets, False)
+
+        return predictions
+
+##########################################
+# Classifier
+#   This will hold the neural network.
+#       It will get the data ready and
+#       train and test the Neural Network.
+##########################################
+class Classifier:
+    #
+    # Member variables
+    #
+    data    = []
+    targets = []
+    neuralNetwork = None
+
+    #
+    # Member methods
+    #
+    ###########################################
+    # Constructor
+    ###########################################
+    def __init__(self, data, targets):
+        # Normalize the data
+        data = self.normalize(data)
+
+        # Randomize the data
+        self.randomize(data, targets)
+
+    ###########################################
+    # randomize
+    #   This will randomize the data and targets.
+    ###########################################
+    def randomize(self, data, targets):
+        # Add the targets to the data
+        combine = list(zip(data, targets))
+
+        # Now randomize it
+        random.shuffle(combine)
+
+        # Now split them again
+        for row in combine:
+            dataRow, target = row
+
+            self.data.append(dataRow)
+            self.targets.append(target)
+
+        return
+
+    ###########################################
+    # normalize
+    #   This will change the data based off the
+    #       standard deviation and mean.
+    ###########################################
+    def normalize(self, dataSet):
+        # Grab the number of attributes
+        num = len(dataSet[0])
+
+        # Create an array of arrays. This will save the columns
+        attributeValues = [[] for i in range(num)]
+
+        # Split the attributes by it's columns
+        for attributes in dataSet:
+            # Now loop through the columns
+            for i, attribute in enumerate (attributes):
+                # Now save it
+                attributeValues[i].append(attribute)
+
+        # Grab the standard deviation and mean
+        stndDev = np.std(attributeValues, axis=1)
+        mean = np.mean(attributeValues, axis=1)
+
+        # Now save the zscore
+        for attributes in dataSet:
+            for i, attribute in enumerate (attributes):
+                attributes[i] = (attribute - mean[i]) / stndDev[i]
+
+        return dataSet
+
+    ###########################################
+    # run
+    #   Run the program. This will train the Neural
+    #       Network then test it.
+    ###########################################
+    def run(self, network):
+        # Split the data
+        train = int(len(self.data) * 0.7)
+        test  = len(self.data)
+
+        trainSet     = self.data[0:train]
+        testSet      = self.data[train:test]
+        trainTargets = self.targets[0:train]
+        testTargets  = self.targets[train:test]
+
+        # Grab how many classes
+        classes = len(set(self.targets))
+
+        # Now start the neural network
+        self.network = NeuralNetwork(network, len(self.data[0]), classes)
+
+        # Train it
+        self.network.train(trainSet, trainTargets)   # Training here first
+
+        # Now test it
+        predictions = self.network.test(testSet, testTargets)
+
+        # See how accurate it is
+        count = 0
+        for i, target in enumerate (testTargets):
+            if  target == predictions[i]:
+                count += 1
+
+        # Print out the results
+        print('\nHere are test results: \n'
+            '\tNeuralNetwork algorithm was %0.2f%% accurate\n' % ((count / len(testTargets) * 100)))
+
         return
 
 ###############################################
@@ -233,28 +364,11 @@ def main(argv):
             data = iris.data
             targets = iris.target
 
-        # Now hurry and normalize the data
-        data = normalize(data)
+        # Create the classifier
+        classifier = Classifier(data, targets)
 
-        # Randomize it
-        randomize(data, targets)
-
-        # Split the data
-        train = int(len(data) * 0.7)
-        test  = len(data)
-
-        trainSet     = data[0:train]
-        testSet      = data[train:test]
-        trainTargets = targets[0:train]
-        testTargets  = targets[train:test]
-
-        # Grab how many classes
-        classes = len(set(targets))
-
-        # Now start the neural network
-        network = NeuralNetwork(inputs['-net'], len(data[0]), classes)
-        network.train(trainSet, trainTargets)
-
+        # Now run the classifier
+        classifier.run(inputs['-net'])
     return
 
 # This will start the program in main
