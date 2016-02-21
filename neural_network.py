@@ -18,6 +18,8 @@ from copy import deepcopy
 import random
 import json
 import math
+from sknn.mlp import Classifier, Layer
+import matplotlib.pyplot as plt
 
 ###########################################
 # readFile
@@ -54,12 +56,6 @@ def readFile(fileName, data, targets):
 ##########################################
 class NeuralNetwork:
     #
-    # Member variables
-    #
-    network = [] # This will hold the weights
-    inputs  = [] # This will hold the number of inputs for each layer
-
-    #
     # Member methods
     #
     ###########################################
@@ -67,10 +63,16 @@ class NeuralNetwork:
     #   This will build the nodes and put all the
     #       weights into the nodes variable.
     ###########################################
-    def __init__(self, network, weights, classes):
+    def __init__(self, network, weights, classes, n):
         # Grab how many layers and nodes
         numNodes = [int(index) for index in network.split(',')]
         layers   = len(numNodes) + 1 # For the final layer
+
+        # Save the size
+        self.size = layers
+
+        # Set the learning rate
+        self.n = n
 
         # First create the layers
         self.network = [[] for i in range(layers)]
@@ -106,16 +108,92 @@ class NeuralNetwork:
         # Go through each of the outputs
         for value in outputs[0]:
             # Now do the equation
-            value[0] = 1 / (1 + math.exp(value[0]))
+            value[0] = 1 / (1 + math.exp(-value[0]))
 
         return outputs
 
     ###########################################
+    # outputError
+    #   This will calculate the output error for
+    #       all the output errors
+    ###########################################
+    def outputErrors(self, output, target):
+        # Loop through each node
+        errors = []
+        for n, node in enumerate(output[0]):
+            # Grab the target value
+            value = 1 if n == target else 0
+
+            # Now do this math: aj(1 - aj)(aj - value)
+            error = node[0] * (1 - node[0]) * (node[0] - value)
+
+            # Save the error
+            errors.append(error)
+
+        return errors
+
+    ###########################################
+    # hiddenError
+    #   Same as outputError but for the hidden
+    #       layers instead.
+    ###########################################
+    def hiddenErrors(self, weights, outputs, errors):
+        # Loop through the current node's outputs
+        newErrors = []
+
+        # Loop through all the outputs except for the last one
+        size = len(outputs[0])
+        for n in range(size - 1):
+            # Sum up the weights times the errors on the right layer
+            # wjk * dk
+            # Loop through the weights
+            error = 0
+            for w, weight in enumerate(weights):
+                error += weight[n][0] * errors[w]
+
+            # Compute final answer: aj(1 - aj)error
+            finalError = outputs[0][n] * (1 - outputs[0][n]) * error
+            newErrors.append(finalError)
+
+        return newErrors
+
+    ###########################################
     # updateWeights
     #   Update the weights if the feed forward
-    #
+    #       produces not the desired output.
     ###########################################
-    def updateWeights(self, inputs, outputs):
+    def updateWeights(self, inAndOut, target):
+        # Grab how many layers in the network
+        size = len(self.network)
+
+        # Loop through the layers reversed
+        errors = None  # dj
+        weights = None # This will save the previous weights that haven't been updated yet
+        for l, layer in reversed(list(enumerate(self.network))):
+            # Is this the outer layer?
+            if (l + 1) == size:
+                # Then do this special case
+                errors = self.outputErrors(inAndOut[-1], target)
+            else:
+                # Otherwise do this case for the hidden layers
+                errors = self.hiddenErrors(weights, inAndOut[l + 1], errors)
+
+            # Save the old weights
+            weights = layer
+
+            # Loop through the nodes
+            # Do this equation: wij = wij - n * dj * ai
+            for n, node in enumerate(layer):
+                # Compute this n * dj
+                rhs = self.n * errors[n]
+
+                # Loop through each weight
+                for w, weight in enumerate(node):
+                    # Times this to ai
+                    rhs *= inAndOut[l][0][w]
+
+                    # Finally change the weight!
+                    node[w][0] = weight[0] - rhs
         return
 
     ###########################################
@@ -135,10 +213,10 @@ class NeuralNetwork:
             # Grab the inputs and reshape it
             inputs = np.array(row).reshape(1, self.inputs[0])
 
+            inAndOut = [] # Save the input/outputs after each feed
+            inAndOut.append(inputs)
             # Start looping through the layers
-            # saveInputs  = []
-            # saveOutputs = []
-            for l, layer in enumerate(self.network):
+            for l in range(self.size):
                 # Skip the first layer since the inputs were from the data set
                 if l > 0:
                     # See if the nodes were activiated
@@ -150,19 +228,26 @@ class NeuralNetwork:
                     # Then reshape it
                     inputs = np.array(newInputs).reshape(1, self.inputs[l])
 
-                # Save the inputs
-                # saveInputs.append(inputs)
+                    # Save the new inputs
+                    inAndOut.append(inputs)
 
                 # Do the dot product
-                inputs = np.dot(inputs, layer)
+                inputs = np.dot(inputs, self.network[l])
+
+            # Save the last outputs
+            inputs = self.activationFunction(inputs)
+            inAndOut.append(inputs)
 
             # Now find out which class had won
             outputs = list(inputs[0])
             winner = outputs.index(max(outputs))
 
-            # Save the predictions if we are testing
-            if train == False:
-                predictions.append(winner)
+            # Save the predictions
+            predictions.append(winner)
+
+            # Only train the network if we are training
+            if train:
+                self.updateWeights(inAndOut, targets[i])
 
         return predictions
 
@@ -174,7 +259,7 @@ class NeuralNetwork:
         # Start the training
         predictions = self.feedNetwork(train, targets)
 
-        return
+        return predictions
 
     ###########################################
     # test
@@ -195,30 +280,41 @@ class NeuralNetwork:
 ##########################################
 class Classifier:
     #
-    # Member variables
-    #
-    data    = []
-    targets = []
-    neuralNetwork = None
-
-    #
     # Member methods
     #
     ###########################################
     # Constructor
     ###########################################
-    def __init__(self, data, targets):
+    def __init__(self, data, targets, epochs, n):
+        # Create member variables
+        self.train = []
+        self.test  = []
+        self.trainTargets = []
+        self.testTargets  = []
+        self.epochs = epochs if epochs is not None else 100
+        self.n = n if n is not None else 0.2
+
         # Normalize the data
         data = self.normalize(data)
 
+        # Split the data
+        train = int(len(data) * 0.7)
+        test  = len(data)
+
+        self.train        = data[0:train]
+        self.test         = data[train:test]
+        self.trainTargets = targets[0:train]
+        self.testTargets  = targets[train:test]
+
         # Randomize the data
-        self.randomize(data, targets)
+        self.randomize(self.train, self.trainTargets, True)
+        self.randomize(self.test, self.testTargets, False)
 
     ###########################################
     # randomize
     #   This will randomize the data and targets.
     ###########################################
-    def randomize(self, data, targets):
+    def randomize(self, data, targets, trainData):
         # Add the targets to the data
         combine = list(zip(data, targets))
 
@@ -226,12 +322,19 @@ class Classifier:
         random.shuffle(combine)
 
         # Now split them again
+        newData = []
+        newTargets = []
         for row in combine:
             dataRow, target = row
+            newData.append(dataRow)
+            newTargets.append(target)
 
-            self.data.append(dataRow)
-            self.targets.append(target)
-
+        if trainData:
+            self.train = newData
+            self.trainTargets = newTargets
+        else:
+            self.test = newData
+            self.testTargets = newTargets
         return
 
     ###########################################
@@ -265,41 +368,78 @@ class Classifier:
         return dataSet
 
     ###########################################
+    # training
+    #   Train the neural network
+    ###########################################
+    def training(self):
+        # Start the epochs
+        save = []
+        for e in range(self.epochs):
+            # Grab the predictions
+            predictions = self.network.train(self.train, self.trainTargets)
+
+            # How accurate was it?
+            a = self.printAccuracy(predictions, self.trainTargets)
+            save.append(a)
+
+            # Randomize the data again
+            self.randomize(self.train, self.trainTargets, True)
+
+        plt.plot(save)
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+        plt.show()
+
+        return
+
+    ###########################################
+    # printAccuracy
+    #   This will show how accurate it was.
+    ###########################################
+    def printAccuracy(self, predictions, targets):
+        save = 0
+        count = 0
+        for i, target in enumerate (targets):
+            if target == predictions[i]:
+                count += 1
+
+        a = (count / len(targets) * 100)
+        save = a
+        print('%0.2f%%' % (a))
+
+        return save
+
+    ###########################################
     # run
     #   Run the program. This will train the Neural
     #       Network then test it.
     ###########################################
-    def run(self, network):
-        # Split the data
-        train = int(len(self.data) * 0.7)
-        test  = len(self.data)
+    def run(self, network, exist):
+        predictions = []
+        if exist:
+            pass
+            # nn = Classifier(layers=[Layer("Rectifier", units=100), Layer("Softmax")], learning_rate=0.02, n_iter=10)
+            # nn.fit(self.train, self.trainTargets)
+            # predictions = clf.predict(self.test)
+        else:
+            # Grab how many classes
+            classes = len(set(self.trainTargets))
 
-        trainSet     = self.data[0:train]
-        testSet      = self.data[train:test]
-        trainTargets = self.targets[0:train]
-        testTargets  = self.targets[train:test]
+            # Now start the neural network
+            self.network = NeuralNetwork(network, len(self.train[0]), classes, self.n)
 
-        # Grab how many classes
-        classes = len(set(self.targets))
+            # Train it
+            self.training()
 
-        # Now start the neural network
-        self.network = NeuralNetwork(network, len(self.data[0]), classes)
-
-        # Train it
-        self.network.train(trainSet, trainTargets)   # Training here first
-
-        # Now test it
-        predictions = self.network.test(testSet, testTargets)
-
-        # See how accurate it is
-        count = 0
-        for i, target in enumerate (testTargets):
-            if  target == predictions[i]:
-                count += 1
+            # Now test it
+            predictions = self.network.test(self.test, self.testTargets)
 
         # Print out the results
         print('\nHere are test results: \n'
-            '\tNeuralNetwork algorithm was %0.2f%% accurate\n' % ((count / len(testTargets) * 100)))
+            'NeuralNetwork algorithm was: ')
+
+        # See how accurate it is
+        save = self.printAccuracy(predictions, self.testTargets)
 
         return
 
@@ -312,7 +452,7 @@ class Classifier:
 ###############################################
 def main(argv):
     # Possible arguments
-    inputs = {'-file': None, '-exist': None, '-help': None, '-net': None}
+    inputs = {'-file': None, '-exist': None, '-help': None, '-net': None, '-e': None, '-l': None}
     error = None
 
     # Loop through the arguments
@@ -327,6 +467,10 @@ def main(argv):
                     inputs[input] = argv[i + 1]
                 elif input == '-net':
                     inputs[input] = argv[i + 1]
+                elif input == '-e':
+                    inputs[input] = int(argv[i + 1])
+                elif input == '-l':
+                    inputs[input] = int(argv[i + 1])
             else:
                 error = '\nError: No value given for argument %s.\nType -help for help.\n\n' % input
 
@@ -347,6 +491,8 @@ def main(argv):
             '\t          EXAMPLE: -net 2,3,3 This will create 3 layers with 2 nodes in the first,\n'
             '\t          3 in the second, and 3 in the last layer. No spaces between commas.\n'
             '\t-exist,   Test data with exisiting implementation.\n'
+            '\t-l,       How fast should it learn? OPTIONAL. DEFAULT 0.2\n'
+            '\t-e,       How many epochs for training the network?. DEFAULT 100\n'
             '\t-help,    Show this.\n')
     else:
         # Grab the data
@@ -365,10 +511,10 @@ def main(argv):
             targets = iris.target
 
         # Create the classifier
-        classifier = Classifier(data, targets)
+        classifier = Classifier(data, targets, inputs['-e'], inputs['-l'])
 
         # Now run the classifier
-        classifier.run(inputs['-net'])
+        classifier.run(inputs['-net'], inputs['-exist'])
     return
 
 # This will start the program in main
