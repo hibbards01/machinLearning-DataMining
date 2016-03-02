@@ -1,0 +1,40 @@
+When your assignment is complete, please answer the questions in this text file and upload it to I-Learn.
+
+
+1. Please describe your experiment/results for the Vowel dataset. How many different parameters did you try? What was the highest accuracy you obtained, and what were the parameters that produced it?
+
+I tried changing the gamma and the cost variables.
+99.66% with:
+gamma = 0.1
+cost = 100
+
+2. Please describe your experiment/results for the Letters dataset. How many different parameters did you try? What
+was the highest accuracy you obtained, and what were the parameters that produced it?
+
+I tried changing the gamma and the cost variables.
+97.25% with:
+gamma = 0.1
+cost = 20
+
+3. Please describe your experiment/results for the Abalone dataset. How many different parameters did you try? What was the highest accuracy you obtained, and what were the parameters that produced it?
+
+I tried changing the gamma and the cost variables.
+28.25%
+gamma = 0.1
+cost = 10
+
+4. Describe anything you did to go above and beyond the minimum standard requirements.
+I tried to make the code more dynamic but I did not know how to create a symoblic variable.
+
+
+5. Please select the category you feel best describes your assignment:
+A - Some attempt was made
+B - Developing, but signficantly deficient
+C - Slightly deficient, but still mostly adequate
+D - Meets requirements
+E - Shows creativity and excels above and beyond requirements
+
+D.
+
+6. Provide a brief justification (1-2 sentences) for selecting that category.
+I really went for the requirements. I tried to make it dynamic but I ran into some problems with the symbolic variable.
